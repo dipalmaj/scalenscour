@@ -59,13 +59,19 @@ object List { // `List` companion object. Contains functions for creating and wo
   }
 
   // Exercise 3.2
-  def tail[A](l: List[A]): List[A] = ???
+  def tail[A](l: List[A]): List[A] = l match {
+    case Cons(_, xs) => xs
+    case _ => Nil
+  }
 
   // Exercise 3.3
-  def setHead[A](l: List[A], h: A): List[A] = ???
+  def setHead[A](l: List[A], h: A): List[A] = Cons(h, tail(l))
 
   // Exercise 3.4
-  def drop[A](l: List[A], n: Int): List[A] = ???
+  def drop[A](l: List[A], n: Int): List[A] = n match {
+    case i if i > 0 => drop(tail(l), n-1)
+    case _ => l
+  }
 
   // Exercise 3.5
   def dropWhile[A](l: List[A], f: A => Boolean): List[A] = ???
