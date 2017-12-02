@@ -1,2 +1,12 @@
 *.class
 *.log
+.idea
+*.iml
+*.eml
+target
+project/target
+*.DS_Store
+derby.log
+metastore_db
+*.zip
+
