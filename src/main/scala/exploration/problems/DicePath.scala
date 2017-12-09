@@ -1,50 +1,73 @@
 package exploration.problems
 
-import scala.io.Source
-import scala.util.Try
+import util.TimeSupport.stopWatch
 
-sealed trait Move {
-  type DieState[S,+A] = S => (A,S)
-  def move: DieState[SixSided,Int]
-  def apply(ds: SixSided) = move(ds)
-}
-case object Down extends Move {
-  override def move: DieState[SixSided,Int] = ss => {
-    val front = 7 - ss.front
-    (front, SixSided(front, ss.top, ss.right))
+case class Die(top: Int, front: Int, right: Int)
+object DiceBoard {
+  type DieValue = (Int, Die)
+  type BoardValue = (Int, Set[(Int,Die)])
+  type Board = collection.immutable.Map[(Int,Int), BoardValue]
+
+  val down: (DieValue => DieValue) = (vd: (Int, Die)) => (vd._1 + (7-vd._2.front), Die(7 - vd._2.front, vd._2.top, vd._2.right))
+  val right: (DieValue => DieValue) = (vd: (Int,Die)) => (vd._1 + (7-vd._2.right), Die(7 - vd._2.right, vd._2.front, vd._2.top))
+
+  def move(node: BoardValue, f: DieValue => DieValue): BoardValue = {
+    val moved = node._2.map(f)
+    (moved.maxBy(_._1)._1, moved)
   }
-}
-case object Right extends Move {
-  override def move: DieState[SixSided,Int] = ss => {
-    val left = 7 - ss.right
-    (left, SixSided(left, ss.front, ss.top))
+
+  def mergeBoardValues(bv1: BoardValue, bv2: BoardValue): BoardValue = {
+    (Seq(bv1._1, bv2._1).max, bv1._2 ++ bv2._2)
   }
-}
-case class SixSided(top: Int, front: Int, right: Int) {
-  def ==(die: SixSided): Boolean = {
-    this.top == die.top && this.front == die.front && this.right == die.right
+
+  def maxMerge(boards: Board*): Board = {
+    if (boards.size == 1) boards.head
+    else
+      boards.tail.foldLeft(boards.head)((acc, brd) => {
+      acc ++ brd ++ acc.keySet.intersect(brd.keySet).map( k => (k, mergeBoardValues(acc(k), brd(k))))
+    })
   }
+
+  def apply(board: Board, m: Int, n: Int): (Int, Board) = {
+    if (board.contains(m,n)) (board(m,n)._1, board)
+    else {
+      val keys = board.keySet.filterNot(mn => mn._1 > m && mn._2 > n)
+      val maxCoords = Set(keys.filter(_._2 == 1).maxBy(_._1),keys.filter(_._1 == 1).maxBy(_._2)).toSeq.sortBy(_._1)
+      val buildSquare = if (m > n) m else n
+
+      val fill = maxCoords.flatMap(coord => {
+        (coord._1 to buildSquare).flatMap(cm => {
+          val newColStart = if (cm > coord._1) 1 else coord._2
+          (newColStart to buildSquare).map(cn => (cm,cn))
+        })
+      }).sorted
+
+      val expanded = fill.foldLeft(board)((acc, mn) => {
+        if (acc.contains(mn)) acc
+        else {
+          expand(acc, mn)
+        }
+      })
+      (expanded(m,n)._1, expanded)
+    }
+  }
+
+  // Start condition (1,1)
+  def expand(board: Board, coord: (Int,Int)): Board = {
+    val (m,n) = coord
+    if (m == 1) {
+      maxMerge(board, Map(coord -> move(board(m,n-1), right)))
+    }
+    else if (n == 1) {
+      maxMerge(board, Map(coord -> move(board(m-1,n), down)))
+    }
+    else maxMerge(board, Map(coord -> mergeBoardValues(move(board(m,n-1), right), move(board(m-1,n), down))))
+  }
+
 }
 
 object DicePath {
-  // StopWatch
-  def stopWatch[A](process: => A, task: String=""): A = {
-    val start = System.currentTimeMillis()
-    val result = Try(process)
-    val stop = System.currentTimeMillis()
-    val timeDiff = stop - start
-
-    lazy val hours = (timeDiff / (1000 * 60 * 60)) % 24
-    lazy val minutes = (timeDiff / (1000 * 60)) % 60
-    lazy val seconds = (timeDiff / 1000) % 60
-    lazy val milliseconds = timeDiff / 1000
-
-    // format time diff in HH:MM:SS:MMM
-    lazy val elapsedTime = "%02d:%02d:%02d.%03d".format(hours, minutes, seconds, milliseconds)
-
-    println(s"Task: $task Time: $elapsedTime")
-    result.get
-  }
+  import DiceBoard._
 
   /*
   Initially dice is at point (1, 1), and its top face has 1 pip, front face has 2 pips,
@@ -53,55 +76,31 @@ object DicePath {
   A path sum to a point is the sum of value of dice when it is rolled to that point from (1, 1).
   As already stated, value at the current location is the number of pips on the top face of the dice.
   Find the maximum path sum to (M, N).
+
    */
-  val die = SixSided(1, 2, 4)
-  val mStart = 1
-  val nStart = 1
-
-
-  def runTest(test: String) = {
-    val lines = Source.fromFile(s"/Users/wanderer/Documents/data/hackerrank/$test").getLines()
-    lines.next()
-
-    // Grid (M, N)
-  }
+  val die = Die(1, 2, 4)
+  val initialStates = Set((1,die))
+  val initialBoard: Board = Map((1,1) -> (1, initialStates))
 
   def main(args: Array[String]): Unit = {
+    simpleTest
 
-    val repeats = pattern(20).distinct
-    println(s"There are ${repeats.size} repeats")
-    repeats.foreach(println)
-
-    // Testing
-//    runTest("test3")
-
-//    println(stopWatch(getMaxPathTo(10,20)._1, "SoloRun"))
+    val r = stopWatch(DiceBoard(initialBoard, 1, 60))
+    println(r._1)
   }
 
-  def pattern(attempts: Int, dice: SixSided=die, moves: Seq[Move]=Nil, results: Seq[Seq[Move]]=Nil): Seq[Seq[Move]] = {
-    if (attempts > 0) {
-      val movedRight = Right(dice)
-      val movedDown = Down(dice)
+  def simpleTest = {
+    assert(9 == DiceBoard(initialBoard, 2,2)._1, "Incorrect Value 9")
+    assert(4 == DiceBoard(initialBoard, 1,2)._1, "Incorrect Value 4")
+    assert(6 == DiceBoard(initialBoard, 2,1)._1, "Incorrect Value 6")
+    assert(19 == DiceBoard(initialBoard, 3,3)._1,"Incorrect Value 19")
 
-      {
-        if (movedRight._2 == die) {
-          val mvs = moves :+ Right
-          results :+ mvs
-        } else pattern(attempts-1, movedRight._2, moves :+ Right, results)
-      } ++
-      {
-        if (movedDown._2 == die) {
-          val mvs = moves :+ Down
-          results :+ mvs
-        } else pattern(attempts-1, movedDown._2, moves :+ Down, results)
-      }
-    }
-    else results
-  }
+    val test = DiceBoard(initialBoard, 2, 3)
+    println(s"Results were ${test._1}")
+    println(s"New board is ${test._2}")
 
-
-  def test(): Unit = {
-
+    val test2 = DiceBoard(initialBoard, 20, 22)
+    println(s"Results were ${test2._1}")
   }
 
 }
