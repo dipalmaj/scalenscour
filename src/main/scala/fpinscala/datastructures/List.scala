@@ -2,7 +2,6 @@ package fpinscala.datastructures
 
 import exploration.functional.NumeralByNature
 import exploration.functional.NumeralByNatureUtil._
-import exploration.functional.NumeralByNatureUtil._
 
 
 
