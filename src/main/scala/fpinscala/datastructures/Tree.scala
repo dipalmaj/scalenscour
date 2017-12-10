@@ -15,25 +15,19 @@ object Tree {
 
   // 3.26
   def max(tree: Tree[Int]): Int = tree match {
-    case Branch(l,r) =>
-      val lm = max(l)
-      val rm = max(r)
-      if (lm > rm) lm else rm
+    case Branch(l,r) => max(l) max max(r)
     case Leaf(v) => v
   }
 
   // 3.27
   def depth[A](tree: Tree[A], d: Int=0): Int = tree match {
-    case Branch(l,r) =>
-      val ld = depth(l, d + 1)
-      val rd = depth(r, d + 1)
-      if (ld > rd) ld else rd
+    case Branch(l,r) => depth(l, d + 1) max depth(r, d + 1)
     case Leaf(_) => d
   }
 
   // 3.28
-  def map[A,B](tree: Tree[A], f: A => B): Tree[B] = tree match {
-    case Branch(l,r) => Branch(map(l,f), map(r,f))
+  def map[A,B](tree: Tree[A])(f: A => B): Tree[B] = tree match {
+    case Branch(l,r) => Branch(map(l)(f), map(r)(f))
     case Leaf(a) => Leaf(f(a))
   }
 
