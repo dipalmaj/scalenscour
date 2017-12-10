@@ -1,5 +1,6 @@
 package fpinscala.datastructures
 
+
 sealed trait List[+A] // `List` data type, parameterized on a type, `A`
 case object Nil extends List[Nothing] // A `List` data constructor representing the empty list
 /* Another data constructor, representing nonempty lists. Note that `tail` is another `List[A]`,
@@ -87,16 +88,33 @@ object List { // `List` companion object. Contains functions for creating and wo
 
   def length[A](l: List[A]): Int = foldRight(l,0)((_,y) => y + 1)
 
+  // Ex 3.10
   def foldLeft[A,B](l: List[A], z: B)(f: (B, A) => B): B = l match {
     case Cons(x, xs) => foldLeft(xs, f(z,x))(f)
     case _ => z
   }
 
+  // Ex 3.11
+  def sumL(ns: List[Int]): Int = ns match {
+    case Cons(x, xs) => foldLeft(xs, x)( (acc, a) => acc + a)
+  }
+
+  def productL(ns: List[Double]): Double = foldLeft(ns, 0.0)((acc, d) => acc*d)
+
+  def lengthL[A](ns: List[A]): Int = foldLeft(ns, 0)((acc,_) => acc+1)
+
   def map[A,B](l: List[A])(f: A => B): List[B] = l match {
     case Cons(x, xs) => foldLeft(xs, Cons(f(x), Nil))((z,y) => Cons(f(y),z))
     case _ => Nil
   }
+
+  def zipWith[A,B](seqA: List[A], seqB: List[B]): List[(A,B)] = (seqA, seqB) match {
+    case (Cons(a, as), Cons(b, bs)) => Cons((a,b), zipWith(as,bs))
+    case _ => Nil
+  }
+
 }
+
 
 
 object Test {
@@ -108,18 +126,5 @@ object Test {
     println(init(init(test)))
 
     println(map(test)(_ * 2))
-
-    foldLeft(test, 0)( (b,a) => {
-      val c = b+a
-      println(c)
-      c
-    })
-
-    println("Right")
-    foldRight(test, 0)( (a,b) => {
-      val c = b+a
-      println(c)
-      c
-    })
   }
 }
