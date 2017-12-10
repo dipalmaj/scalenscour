@@ -1,8 +1,23 @@
 package fpinscala.datastructures
 
+import exploration.functional.NumeralByNature
+import exploration.functional.NumeralByNatureUtil._
+import exploration.functional.NumeralByNatureUtil._
 
-sealed trait List[+A] // `List` data type, parameterized on a type, `A`
-case object Nil extends List[Nothing] // A `List` data constructor representing the empty list
+
+
+sealed trait List[+A] {
+  def head: A
+  def tail: List[A]
+}
+
+// A `List` data constructor representing the empty list
+case object Nil extends List[Nothing] {
+  override def head: Nothing = throw new Exception("no head for empty")
+
+  override def tail: List[Nothing] = List[Nothing]()
+}
+
 /* Another data constructor, representing nonempty lists. Note that `tail` is another `List[A]`,
 which may be `Nil` or another `Cons`.
  */
@@ -95,11 +110,17 @@ object List { // `List` companion object. Contains functions for creating and wo
   }
 
   // Ex 3.11
-  def sumL(ns: List[Int]): Int = ns match {
-    case Cons(x, xs) => foldLeft(xs, x)( (acc, a) => acc + a)
+  def sumL(ns: List[Int]): Int = foldLeft(ns, 0)( (acc, a) => acc + a)
+
+  def summantha[T : NumeralByNature](ns: List[T]): T = ns match {
+    case Cons(x, xs) => foldLeft(xs, x)((acc,n) => acc.add(n))
+    case Nil => empty[T]
   }
 
-  def productL(ns: List[Double]): Double = foldLeft(ns, 0.0)((acc, d) => acc*d)
+  def productL[T : NumeralByNature](ns: List[T]): T = ns match {
+    case Cons(x, xs) => foldLeft(xs, x)((acc, d) => acc.product(d))
+    case Nil => empty[T]
+  }
 
   def lengthL[A](ns: List[A]): Int = foldLeft(ns, 0)((acc,_) => acc+1)
 
@@ -126,5 +147,12 @@ object Test {
     println(init(init(test)))
 
     println(map(test)(_ * 2))
+
+    println(summantha(test))
+    println(summantha(test.tail))
+    println(summantha(test.tail.tail.tail))
+
+    println(productL(test))
+
   }
 }

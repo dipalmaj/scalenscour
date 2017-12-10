@@ -1,4 +1,4 @@
-package dot.functional
+package exploration.functional
 
 /**
   * Created by wanderer on 4/25/17.
