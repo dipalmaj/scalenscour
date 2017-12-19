@@ -23,7 +23,7 @@ case class AFCons[+A](head: A, tail: AForm[A]) extends AForm[A]
 object AForm {
 
   def foldRight[A,B](af: AForm[A], z: B)(f: (A,B) => B): B = {
-    foldLeft(af, z)((d: B, e: A) => f(e, d))
+    foldLeft(reverse(af), z)((d: B, e: A) => f(e, d))
   }
 
   @tailrec
