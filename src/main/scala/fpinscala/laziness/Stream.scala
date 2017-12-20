@@ -17,7 +17,23 @@ trait Stream[+A] {
     case Empty => None
     case Cons(h, t) => if (f(h())) Some(h()) else t().find(f)
   }
-  def take(n: Int): Stream[A] = ???
+
+  def take(n: Int): Stream[A] = this match {
+    case Cons(h, t) if n > 1 => cons(h(), t().take(n-1))
+    case Cons(h, _) if n == 1 => cons(h(), empty)
+    case _ => empty
+  }
+
+  def take2(n: Int): Stream[A] = {
+    def helper(s: Stream[A], acc: Stream[A], tk: Int = n): Stream[A] = {
+      if (tk == 0) acc
+      else s match {
+        case Cons(h, t) => helper(t(), cons(h(), acc), tk - 1)
+        case empty => empty
+      }
+    }
+    helper(this, empty)
+  }
 
   def drop(n: Int): Stream[A] = ???
 
@@ -26,6 +42,14 @@ trait Stream[+A] {
   def forAll(p: A => Boolean): Boolean = ???
 
   def headOption: Option[A] = ???
+
+  def toList: List[A] = {
+    def listMkr(s: Stream[A], acc: List[A]=Nil): List[A] = s match {
+      case Empty => acc
+      case Cons(h,t) => listMkr(t(), h() +: acc)
+    }
+    listMkr(this)
+  }
 
   // 5.7 map, filter, append, flatmap using foldRight. Part of the exercise is
   // writing your own function signatures.
@@ -52,4 +76,15 @@ object Stream {
   def from(n: Int): Stream[Int] = ???
 
   def unfold[A, S](z: S)(f: S => Option[(A, S)]): Stream[A] = ???
+}
+
+
+object Streaming {
+  def main(args: Array[String]): Unit = {
+    val st = Stream(1,2,3)
+    
+    println(st.toList)
+    println(st.take(2).toList)
+    println(st.take2(2).toList)
+  }
 }
