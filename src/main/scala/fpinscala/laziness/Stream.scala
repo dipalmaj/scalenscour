@@ -82,7 +82,7 @@ object Stream {
 object Streaming {
   def main(args: Array[String]): Unit = {
     val st = Stream(1,2,3)
-    
+
     println(st.toList)
     println(st.take(2).toList)
     println(st.take2(2).toList)
