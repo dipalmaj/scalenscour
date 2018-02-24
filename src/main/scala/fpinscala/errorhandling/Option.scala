@@ -14,7 +14,7 @@ sealed trait Option[+A] {
     case _ => default
   }
 
-  def flatMap[B](f: A => Option[B]): Option[B] = this.map(f).getOrElse(None)
+  def flatMap[C](f: A => Option[C]): Option[C] = this.map(f).getOrElse(None)
 
   def orElse[B>:A](ob: => Option[B]): Option[B] = this.map(Some(_)).getOrElse(ob)
 
@@ -62,7 +62,8 @@ object Option {
     a.foldRight[Option[List[A]]](Some(Nil))( (x,y) => map2(x,y)( (_ :: _)))
   }
 
-  def traverse[A, B](a: List[A])(f: A => Option[B]): Option[List[B]] = a.foldRight[Option[List[B]]](Some(Nil))( (a, acc) => map2(f(a),acc)(_ :: _))
+  def traverse[A, B](a: List[A])(f: A => Option[B]): Option[List[B]] =
+    a.foldRight[Option[List[B]]](Some(Nil))( (a, acc) => map2(f(a),acc)(_ :: _))
 
   def seqfromtraverse[A](a: List[Option[A]]): Option[List[A]] = traverse(a)(x => x)
 }

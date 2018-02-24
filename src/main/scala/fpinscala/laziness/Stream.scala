@@ -1,21 +1,10 @@
 package fpinscala.laziness
+sealed trait Stream[+A] {
+  import Stream._
 
-import Stream._
-trait Stream[+A] {
-
-  def foldRight[B](z: => B)(f: (A, => B) => B): B = // The arrow `=>` in front of the argument type `B` means that the function `f` takes its second argument by name and may choose not to evaluate it.
-    this match {
-      case Cons(h,t) => f(h(), t().foldRight(z)(f)) // If `f` doesn't evaluate its second argument, the recursion never occurs.
-      case _ => z
-    }
-
-  def exists(p: A => Boolean): Boolean = 
-    foldRight(false)((a, b) => p(a) || b) // Here `b` is the unevaluated recursive step that folds the tail of the stream. If `p(a)` returns `true`, `b` will never be evaluated and the computation terminates early.
-
-  @annotation.tailrec
-  final def find(f: A => Boolean): Option[A] = this match {
-    case Empty => None
-    case Cons(h, t) => if (f(h())) Some(h()) else t().find(f)
+  def toList: List[A] = this match {
+    case Cons(h,t) => List(h()) ++ t().toList
+    case _ => Nil
   }
 
   def take(n: Int): Stream[A] = this match {
@@ -24,37 +13,98 @@ trait Stream[+A] {
     case _ => empty
   }
 
-  def take2(n: Int): Stream[A] = {
-    def helper(s: Stream[A], acc: Stream[A], tk: Int = n): Stream[A] = {
-      if (tk == 0) acc
-      else s match {
-        case Cons(h, t) => helper(t(), cons(h(), acc), tk - 1)
-        case empty => empty
-      }
-    }
-    helper(this, empty)
+  def takeWhile(p: A => Boolean): Stream[A] = this match {
+    case Cons(h, t) if p(h()) => cons(h(), t().takeWhile(p))
+    case _ => empty
   }
 
-  def drop(n: Int): Stream[A] = ???
-
-  def takeWhile(p: A => Boolean): Stream[A] = ???
-
-  def forAll(p: A => Boolean): Boolean = ???
-
-  def headOption: Option[A] = ???
-
-  def toList: List[A] = {
-    def listMkr(s: Stream[A], acc: List[A]=Nil): List[A] = s match {
-      case Empty => acc
-      case Cons(h,t) => listMkr(t(), h() +: acc)
-    }
-    listMkr(this)
+  def existsFull(p: A => Boolean): Boolean = this match {
+    case Cons(h, t) => p(h()) || t().existsFull(p)
+    case _ => false
   }
 
-  // 5.7 map, filter, append, flatmap using foldRight. Part of the exercise is
-  // writing your own function signatures.
+  // Can this be done tail rec??? Would that force evaluation?
+  def foldRight[B](z: => B)(f: (A, => B) => B): B = this match {
+    case Cons(h, t) => f(h(), t().foldRight(z)(f))
+    case _ => z
+  }
 
-  def startsWith[B](s: Stream[B]): Boolean = ???
+  def exists(p: A => Boolean): Boolean = foldRight(false)((a,b) => p(a) || b)
+
+  def forAll(p: A => Boolean): Boolean = foldRight(true)((a,b) => p(a) && b)
+
+  def headOption: Option[A] = foldRight(None: Option[A])( (a,_) => if (a != empty) Option(a) else None)
+
+  def takeWhileFold(p: A => Boolean): Stream[A] = foldRight(Stream[A]())((a,b) => if (p(a)) cons(a, b) else empty)
+
+  def filter(p: A => Boolean): Stream[A] = foldRight(Stream[A]())((a,b) => if (p(a)) cons(a,b) else b)
+
+  def map[B](p: A => B): Stream[B] = foldRight(Stream[B]())((a,b) => cons(p(a), b))
+
+  def flatMap[B](p: A => Stream[B]): Stream[B] = foldRight(Stream[B]())((a,b) => p(a) match {
+    case Cons(h, _) => cons(h(),b)
+    case _ => empty
+  })
+
+  // TODO asInstance required?
+  def append[C >: A](n: C): Stream[A] = foldRight(Stream[A]())((a,b) => b match {
+    case Empty => cons(a, cons(n.asInstanceOf[A], Empty))
+    case _ => cons(a, b)
+  })
+
+  // General Stream Building
+  def unfold[A,S](z:S)(f: S => Option[(A, S)]): Stream[A] = f(z) match {
+    case Some((h, e)) => cons(h, unfold(e)(f))
+    case None => empty
+  }
+
+  // n, n +1 ...
+  def from(n: Int): Stream[Int] = unfold(n)(up => Some(up,up+1))
+
+  // Fib 0,1,1,2,3,5,8,13,21,34, ...
+  def fib: Stream[Int] = unfold((0,0))(up => {
+    if (up._1 == 0 && up._2 == 0) Some(0, (1,0))
+    else if (up._1 == 1 && up._2 == 0) Some(1, (0,1))
+    else if (up._1 == 0) Some(up._1 + up._2, (1, 1))
+    else Some(up._1 + up._2, (up._2, up._1 + up._2))
+  })
+
+  // Use unfold to map2
+  def mapU[B](p: A => B): Stream[B] = unfold(this)({
+    case Cons(h,t) => Some((p(h()),t()))
+    case _ => None
+  })
+
+  def zipWith[B](s2: Stream[B]): Stream[(A,B)] = unfold((this, s2))( sm => (sm._1, sm._2) match {
+    case (Cons(h1,t1), Cons(h2,t2)) => Some(((h1(), h2()), (t1(), t2())))
+    case _ => None
+  })
+
+  def zipAll[B](s2: Stream[B]): Stream[(Option[A],Option[B])] = unfold((this, s2))( sm => (sm._1, sm._2) match {
+    case (Cons(h1,t1), Cons(h2,t2)) => Some(((Some(h1()), Some(h2())), (t1(), t2())))
+    case (Cons(h1,t1), Empty) => Some(((Some(h1()), None), (t1(), Empty)))
+    case (Empty, Cons(h2,t2)) => Some(((None, Some(h2())), (Empty, t2())))
+    case _ => None
+  })
+
+  // Additional
+  def startsWith[A](s2: Stream[A]): Boolean = this.zipWith(s2).forAll(streams => streams._1 == streams._2)
+
+  // Could use option rather than tuple but match won't unpack two levels I don't think...
+  def tails: Stream[Stream[A]] = unfold((this,true))({
+    case (Cons(h, t),_) => Some((cons(h(),t()), (t(),true)))
+    case (Empty,true) => Some((empty, (empty,false)))
+    case (Empty,false) => None
+  })
+
+  def hasSubsequence[A](s: Stream[A]): Boolean = tails.exists(_.startsWith(s))
+
+  // TODO fix me
+  def scanRight[C >: A](z: C)(f: (C, => C) => C): Stream[C] = unfold(this.tails)({
+    case Cons(h : Stream[C],t) => Some((h.foldRight(z)(f), t()))
+    case _ => None
+  })
+
 }
 case object Empty extends Stream[Nothing]
 case class Cons[+A](h: () => A, t: () => Stream[A]) extends Stream[A]
@@ -68,23 +118,53 @@ object Stream {
 
   def empty[A]: Stream[A] = Empty
 
-  def apply[A](as: A*): Stream[A] =
-    if (as.isEmpty) empty 
-    else cons(as.head, apply(as.tail: _*))
-
-  val ones: Stream[Int] = Stream.cons(1, ones)
-  def from(n: Int): Stream[Int] = ???
-
-  def unfold[A, S](z: S)(f: S => Option[(A, S)]): Stream[A] = ???
+  // TODO is there a way to update this so it doesn't evaluate parameters
+  def apply[A](as: A*): Stream[A] = if (as.isEmpty) empty else cons(as.head, apply(as.tail: _*))
 }
 
 
 object Streaming {
   def main(args: Array[String]): Unit = {
-    val st = Stream(1,2,3)
+    // Unfolding
+    val pp = Stream[Int]()
+    pp.fib.take(15).toList
+    pp.from(2).take(5).toList
 
-    println(st.toList)
-    println(st.take(2).toList)
-    println(st.take2(2).toList)
+    // More unfolding
+    val res = pp.unfold(10)(pop => if(pop < 10000) Some(pop,pop+1) else None)
+    res.take(4).toList
+    pp.from(20).take(10).toList
+
+
+    val s = Stream(1,2,3,0)
+    s.tails.toList.map(_.toList)
+    s.foldRight(0)(_ + _)
+
+    println(s)
+    s.take(1).toList
+    s.takeWhile(_ < 3).toList
+    s.forAll(_ < 10)
+    s.headOption
+    s.filter(_ < 2).toList
+    s.append(4).toList
+    s.map(_ * 10).toList
+    s.flatMap(v => Stream(v.toString)).toList
+    Stream.cons({println(1); 1},Stream.cons({println(2); 2},Stream.cons({println(3); 3},Stream.cons({println(4); 4}, Stream.empty)))).takeWhileFold(_ < 3).toList
+    s.mapU(_ * 5).toList
+    Stream.cons({println(1); 1},Stream.cons({println(2); 2},Stream.cons({println(3); 3},Stream.cons({println(4); 4}, Stream.empty)))).takeWhileFold(_ < 3).take(0).toList
+
+    val ss = Stream(1,2)
+    s.startsWith(ss)
+
+    val b = Stream(7,8,9)
+    s.zipWith(b).toList
+    s.zipAll(b).toList
+    s.startsWith(b)
+
+
+    val x = List(1,2,3,4)
+    val y = List("a","b","c")
+    x.zipAll(y,5,"z")
+
   }
 }
