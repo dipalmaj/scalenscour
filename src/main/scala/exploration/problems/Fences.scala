@@ -1,6 +1,6 @@
 package exploration.problems
 
-import util.TimeSupport.stopWatch
+//import util.TimeSupport.stopWatch
 
 import scala.io.Source
 import scala.util.Random
@@ -42,7 +42,7 @@ object RunFences {
   def sample: Fences = {
     val in = Vector(2,5,7,4,1,8)
     val f = Fences(6, Vector((in.head,1)))
-    stopWatch(in.tail.foldLeft(f)((acc,v) => acc.add(v)))
+    in.tail.foldLeft(f)((acc,v) => acc.add(v))
   }
 
   lazy val testSize = 100000
@@ -65,7 +65,7 @@ object RunFences {
     }
 
     val f = Fences(size, Vector((input.head,1)))
-    val result = stopWatch(input.tail.foldLeft(f)((acc,v) => acc.add(v)))
+    val result = input.tail.foldLeft(f)((acc,v) => acc.add(v))
     println(s"Calculate Max: ${result.max}")
 
 

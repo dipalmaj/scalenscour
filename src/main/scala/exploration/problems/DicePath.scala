@@ -1,6 +1,5 @@
 package exploration.problems
 
-import util.TimeSupport.stopWatch
 
 case class Die(top: Int, front: Int, right: Int)
 object DiceBoard {
@@ -85,8 +84,8 @@ object DicePath {
   def main(args: Array[String]): Unit = {
     simpleTest
 
-    val r = stopWatch(DiceBoard(initialBoard, 1, 60))
-    println(r._1)
+//    val r = stopWatch(DiceBoard(initialBoard, 1, 60))
+//    println(r._1)
   }
 
   def simpleTest = {
