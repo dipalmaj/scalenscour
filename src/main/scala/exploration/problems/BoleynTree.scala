@@ -1,71 +1,45 @@
 package exploration.problems
 
-import scala.collection.immutable.HashMap
+import scala.annotation.tailrec
+import scala.collection.immutable.{HashMap, SortedMap}
+import scala.io.Source
 
-
-case class BoleynTree(salary: Int, reports: Set[Int]=Set())
 
 object BoleynTree {
 
-  val input = """8 7
-2 1
-3 2
-4 2
-7 4
-8 4
-5 1
-6 5
-70 40 60 80 10 20 30 50
-2 1
--6 5
--4 1
--5 3
-2 1
--5 4
-2 2
-"""
+  val splitter: String => Seq[Int] = _.split(" ").map(_.toInt)
 
-  val i = scala.io.Source.stdin.getLines()
-  //i.next()
-  //i.toIndexedSeq
+  def main(args: Array[String]): Unit = {
+    // Standard In read
+    // val input = Source.stdin.getLines().toIndexedSeq
+    val input = Source.fromFile("/Users/wanderer/Downloads/boleyn-salary-testcases/input/input00.txt").getLines()
 
-  // TODO use vector index lookup vs list with head tails? or array
-  val d = input.split("\n")
-  val empQueries = d.head.split(" ").map(_.toInt)
-  val emplys = d.tail.take(empQueries.head-1).map(_.split(" ").toVector.map(_.toInt))
-  val sals = d(empQueries.head).split(" ").map(_.toInt).toVector
-  val querys = d.drop(empQueries(0) + 1)
+    val numberOfEmployees = splitter(input.next).head
 
+    val employeeTree = input.take(numberOfEmployees - 1).foldLeft(HashMap(1 -> List[Int]()))( (acc, b) => {
+      val employeeIdAndSuperior = splitter(b)
+      acc + (employeeIdAndSuperior.last -> (employeeIdAndSuperior.head :: acc(employeeIdAndSuperior.last)), employeeIdAndSuperior.head -> Nil)
+    })
 
+    val salary = splitter(input.next).toArray
 
-  def runQueries(employees: IndexedSeq[Vector[Int]], salaries: Vector[Int], queries: IndexedSeq[String]) = {
-    val tree = employees.
-      foldLeft(HashMap(1 -> BoleynTree(salaries.head)))((acc, uAndp) => {
-        val boss = acc(uAndp.last)
-        acc + (uAndp.last -> boss.copy(reports = boss.reports + uAndp.head) , uAndp.head -> BoleynTree(salaries(uAndp.head-1)))
-      })
+    val trimmer = (kLowest: Int, emps: SortedMap[Int,Int]) => if (emps.size > kLowest) emps.dropRight(1) else emps
 
-    // Could optimize and put this inside so tree is available
-    // Also the accumulator here needs to preserve order so maybe an optimized structure for it or system to preserve
-    def getSubordinates(id: Int, subStack: Set[Int]=Set(), acc: Seq[(Int,Int)]=Nil): Seq[(Int,Int)] = {
-      val as  = tree(id)
-      if (as.reports.isEmpty && subStack.isEmpty) acc :+ (id, as.salary)
-      else if (as.reports.nonEmpty) getSubordinates(as.reports.head, as.reports.tail.union(subStack), acc :+ (id, as.salary))
-      else getSubordinates(subStack.head, subStack.tail, acc :+ (id, as.salary))
+    @tailrec
+    def makeSalMap(r: List[Int], kLowest:Int, acc: SortedMap[Int, Int]): SortedMap[Int,Int] = r match {
+      case id :: ids => makeSalMap(employeeTree(id) ::: ids, kLowest, trimmer(kLowest, acc + (salary(id-1) -> id)))
+      case Nil => acc
     }
 
-    queries.foldLeft(0)((prevAnswer, queryStr) => {
-      val vAndk = queryStr.split(" ").map(_.toInt)
-      val id = vAndk.head + prevAnswer
-      val place = tree(id).reports
-      val x = getSubordinates(place.head, place.tail).sortBy(_._2)
-      val kMember = x(vAndk.last - 1)
-      println(kMember._1)
-      kMember._1
-    })
-  }
+    input.foldLeft(0)((prevAnswer, nxtQuery) => {
+        val vAndk = splitter(nxtQuery)
+        val id = vAndk.head + prevAnswer
+        val result = makeSalMap(employeeTree(id),vAndk.last, SortedMap[Int,Int]()).last._2
+        println(result)
+        result
+      })
 
-  runQueries(emplys, sals, querys)
+  }
 
 }
 
