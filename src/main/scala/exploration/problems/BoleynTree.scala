@@ -12,7 +12,7 @@ object BoleynTree {
   def main(args: Array[String]): Unit = {
     // Standard In read
     // val input = Source.stdin.getLines().toIndexedSeq
-    val input = Source.fromFile("/Users/wanderer/Downloads/boleyn-salary-testcases/input/input00.txt").getLines()
+    val input = Source.fromFile("/Users/wanderer/Downloads/boleyn-salary-testcases/input/input01.txt").getLines()
 
     val numberOfEmployees = splitter(input.next).head
 
