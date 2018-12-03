@@ -2,13 +2,10 @@ package util
 
 import java.util.TimeZone
 
-import org.joda.time.DateTimeZone
-
 import scala.util.Try
 
 object TimeSupport {
   def useUtc(): Unit = {
-    DateTimeZone.setDefault(DateTimeZone.forID("UTC"))
     TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
   }
 
